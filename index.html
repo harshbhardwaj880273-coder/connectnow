@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>ConnectNow — Free Video Chat</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎥</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ─── RESET & BASE ─────────────────────────────────── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --accent:       #4f46e5;
+  --accent-dark:  #4338ca;
+  --accent-light: #eeeeff;
+  --border:       #e8e8e8;
+  --bg:           #f4f4f6;
+  --card:         #ffffff;
+  --text:         #111111;
+  --muted:        #888888;
+  --green:        #22c55e;
+  --red:          #ef4444;
+}
+
+html { height: 100%; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* ─── NAV ──────────────────────────────────────────── */
+.nav {
+  position: sticky; top: 0; z-index: 40;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  height: 54px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.logo { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; color: var(--text); }
+.logo em { font-style: normal; color: var(--accent); }
+
+.online-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: #f0fdf4; border: 1px solid #bbf7d0;
+  border-radius: 100px; padding: 4px 12px;
+  font-size: 12px; font-weight: 500; color: #16a34a;
+}
+
+.dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  animation: blink 2s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ─── HOME SCREEN ──────────────────────────────────── */
+#homeScreen {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 24px 16px 32px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 32px 28px;
+  width: 100%; max-width: 400px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.06);
+}
+
+.card-title { font-size: 20px; font-weight: 700; letter-spacing: -.4px; margin-bottom: 4px; }
+.card-sub   { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+
+.field        { margin-bottom: 20px; }
+.field-label  {
+  display: block; font-size: 11px; font-weight: 600;
+  letter-spacing: .5px; text-transform: uppercase;
+  color: #555; margin-bottom: 9px;
+}
+
+/* gender */
+.gender-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+
+.g-btn {
+  background: #f8f8fa; border: 1.5px solid var(--border);
+  border-radius: 11px; padding: 11px 6px;
+  text-align: center; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 500; color: #555;
+  transition: border-color .15s, background .15s, color .15s;
+  user-select: none;
+}
+.g-btn .icon { font-size: 22px; display: block; margin-bottom: 4px; }
+.g-btn:hover,
+.g-btn.sel   { border-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 600; }
+
+/* select */
+.sel-wrap { position: relative; }
+.sel-wrap::after {
+  content:''; position:absolute; right:13px; top:50%; transform:translateY(-50%);
+  border:5px solid transparent; border-top-color:#999; border-bottom:0;
+  pointer-events:none;
+}
+select {
+  width:100%; padding:11px 36px 11px 13px;
+  border:1.5px solid var(--border); border-radius:11px;
+  font-family:inherit; font-size:14px; color:var(--text);
+  background:#f8f8fa; outline:none; appearance:none; cursor:pointer;
+  transition:border-color .15s, background .15s;
+}
+select:focus { border-color: var(--accent); background: #fff; }
+
+/* terms */
+.terms-row {
+  display:flex; align-items:flex-start; gap:9px;
+  font-size:12px; color:var(--muted); line-height:1.55;
+  margin-bottom:22px; cursor:pointer; user-select:none;
+}
+.terms-row input { margin-top:2px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; width:15px; height:15px; }
+.terms-row a { color:var(--accent); text-decoration:none; }
+.terms-row a:hover { text-decoration:underline; }
+
+/* start btn */
+.start-btn {
+  width:100%; background:var(--accent); color:#fff;
+  border:none; border-radius:11px; padding:13px;
+  font-size:15px; font-weight:600; font-family:inherit; cursor:pointer;
+  letter-spacing:-.2px;
+  transition:background .15s, transform .1s, box-shadow .15s;
+  box-shadow:0 2px 12px rgba(79,70,229,.3);
+}
+.start-btn:hover  { background:var(--accent-dark); transform:translateY(-1px); box-shadow:0 4px 18px rgba(79,70,229,.35); }
+.start-btn:active { transform:translateY(0); }
+
+/* footer */
+.home-footer {
+  display:flex; flex-wrap:wrap; gap:8px 14px;
+  justify-content:center; margin-top:20px;
+}
+.home-footer a { font-size:12px; color:#aaa; text-decoration:none; }
+.home-footer a:hover { color:#555; }
+.home-footer span { color:#ddd; font-size:12px; }
+
+/* ─── CHAT SCREEN ──────────────────────────────────── */
+#chatScreen {
+  display: none;
+  position: fixed; inset: 0; z-index: 100;
+  flex-direction: column;
+  background: #0d0d0d;
+}
+#chatScreen.show { display: flex; }
+
+/* chat nav */
+.chat-nav {
+  height: 52px; flex-shrink: 0;
+  background: #161616; border-bottom: 1px solid #242424;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 0 16px;
+}
+.chat-nav .logo { color:#fff; font-size:16px; }
+.chat-nav .logo em { color:#818cf8; }
+
+.chat-status { font-size:12px; color:#666; display:flex; align-items:center; gap:5px; }
+.chat-status .dot { background:var(--green); }
+
+.leave-btn {
+  background:#222; border:1px solid #333; color:#aaa;
+  padding:6px 14px; border-radius:8px;
+  font-size:13px; font-family:inherit; cursor:pointer;
+  transition:background .15s, color .15s;
+}
+.leave-btn:hover { background:#2e2e2e; color:#fff; }
+
+/* video area */
+.videos {
+  flex:1; display:grid; grid-template-columns:1fr 1fr;
+  gap:10px; padding:10px; min-height:0;
+}
+
+.v-box {
+  background:#161616; border:1px solid #242424;
+  border-radius:14px; overflow:hidden;
+  position:relative; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+}
+
+.v-box video {
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; border-radius:14px;
+  background:#000;
+  transform: scaleX(-1); /* mirror local */
+}
+
+/* remote video: no mirror */
+#remoteVideo { transform: scaleX(1); }
+
+.v-tag {
+  position:absolute; top:10px; left:10px; z-index:5;
+  font-size:10px; font-weight:600; letter-spacing:.6px;
+  background:rgba(0,0,0,.55); color:#bbb;
+  padding:3px 8px; border-radius:5px;
+}
+
+.v-placeholder {
+  display:flex; flex-direction:column;
+  align-items:center; gap:8px; z-index:2;
+  pointer-events:none;
+}
+.v-icon  { font-size:44px; opacity:.25; }
+.v-label { font-size:13px; color:#444; }
+
+/* spinner */
+.spinner {
+  width:34px; height:34px; border-radius:50%;
+  border:2px solid #2a2a2a; border-top-color:var(--accent);
+  animation:spin .8s linear infinite; margin-bottom:12px;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* connection overlay on stranger box */
+.status-overlay {
+  position:absolute; inset:0; z-index:3;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:0;
+  background:#161616;
+  transition:opacity .3s;
+}
+.status-overlay.hidden { opacity:0; pointer-events:none; }
+
+.conn-flag { font-size:44px; margin-bottom:8px; }
+.conn-name { font-size:13px; color:#888; }
+
+/* controls */
+.chat-ctrl {
+  flex-shrink:0; background:#161616; border-top:1px solid #242424;
+  padding:12px 16px;
+  display:flex; align-items:center; justify-content:center;
+  gap:8px; flex-wrap:wrap;
+}
+
+.cbtn {
+  padding:10px 18px; border-radius:9px;
+  border:1px solid #2e2e2e; background:#1e1e1e;
+  color:#bbb; font-family:inherit; font-size:13px;
+  font-weight:500; cursor:pointer;
+  transition:background .15s, color .15s, opacity .15s;
+  white-space:nowrap; user-select:none;
+}
+.cbtn:hover            { background:#2a2a2a; color:#fff; }
+.cbtn.primary          { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
+.cbtn.primary:hover    { background:var(--accent-dark); }
+.cbtn.red              { color:#f87171; }
+.cbtn.red:hover        { background:#2a1a1a; color:#fca5a5; }
+.cbtn.active-off       { color:#f87171; border-color:#4a2020; background:#2a1515; }
+
+/* toast */
+.toast {
+  position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,.8); color:#fff; backdrop-filter:blur(8px);
+  padding:9px 18px; border-radius:100px; font-size:13px;
+  opacity:0; transition:opacity .25s; pointer-events:none; z-index:200;
+  white-space:nowrap;
+}
+.toast.show { opacity:1; }
+
+/* ─── PERMISSION SCREEN ─────────────────────────────── */
+#permScreen {
+  display:none; position:fixed; inset:0; z-index:150;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(8px);
+  align-items:center; justify-content:center;
+}
+#permScreen.show { display:flex; }
+
+.perm-card {
+  background:#1a1a1a; border:1px solid #333; border-radius:18px;
+  padding:36px 30px; text-align:center; max-width:340px; width:90%;
+}
+.perm-icon  { font-size:52px; margin-bottom:16px; }
+.perm-title { font-size:18px; font-weight:700; color:#fff; margin-bottom:8px; }
+.perm-sub   { font-size:13px; color:#888; line-height:1.6; margin-bottom:24px; }
+.perm-btn   {
+  background:var(--accent); color:#fff; border:none;
+  border-radius:10px; padding:12px 28px;
+  font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;
+  transition:background .15s;
+}
+.perm-btn:hover { background:var(--accent-dark); }
+.perm-err   { font-size:12px; color:#f87171; margin-top:14px; min-height:18px; }
+
+/* ─── RESPONSIVE ────────────────────────────────────── */
+@media (max-width: 640px) {
+  .card { padding:26px 20px; border-radius:16px; }
+}
+
+@media (max-width: 480px) {
+  #homeScreen { padding:16px 12px 24px; justify-content:flex-start; padding-top:28px; }
+  .card { padding:22px 18px; border-radius:14px; max-width:100%; }
+  .card-title { font-size:17px; }
+  .card-sub   { font-size:12px; margin-bottom:22px; }
+  .g-btn      { padding:10px 4px; font-size:12px; }
+  .g-btn .icon { font-size:20px; }
+  select      { font-size:13px; padding:10px 32px 10px 12px; }
+  .start-btn  { padding:12px; font-size:14px; }
+
+  /* Stack videos vertically on mobile */
+  .videos { grid-template-columns:1fr; grid-template-rows:1fr 1fr; gap:8px; padding:8px; }
+
+  .cbtn { padding:9px 13px; font-size:12px; }
+  .chat-ctrl { gap:6px; padding:10px 12px; }
+}
+
+@media (max-width: 360px) {
+  .nav { padding:0 14px; }
+  .logo { font-size:15px; }
+  .online-pill { font-size:11px; padding:4px 10px; }
+  .card { padding:18px 14px; }
+}
+
+/* landscape mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+  .chat-nav { height:42px; }
+  .chat-ctrl { padding:8px 12px; }
+  .cbtn { padding:7px 12px; font-size:12px; }
+  .videos { gap:6px; padding:6px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav class="nav">
+  <div class="logo">Connect<em>Now</em></div>
+  <div class="online-pill">
+    <div class="dot"></div>
+    <span id="onlineNum">—</span> online
+  </div>
+</nav>
+
+<!-- ══ HOME SCREEN ══════════════════════════════════ -->
+<div id="homeScreen">
+  <div class="card">
+    <div class="card-title">Start Video Chat</div>
+    <div class="card-sub">No account needed — just click and connect.</div>
+
+    <!-- Gender -->
+    <div class="field">
+      <span class="field-label">I am</span>
+      <div class="gender-row">
+        <button class="g-btn" onclick="pickGender(this)"><span class="icon">👨</span>Male</button>
+        <button class="g-btn" onclick="pickGender(this)"><span class="icon">👩</span>Female</button>
+        <button class="g-btn sel" onclick="pickGender(this)"><span class="icon">🙂</span>Any</button>
+      </div>
+    </div>
+
+    <!-- Country -->
+    <div class="field">
+      <span class="field-label">Country</span>
+      <div class="sel-wrap">
+        <select id="countrySelect">
+          <optgroup label="🇮🇳 India">
+            <option value="IN" selected>🇮🇳 India — All</option>
+            <option value="IN-MH">🇮🇳 India — Maharashtra</option>
+            <option value="IN-DL">🇮🇳 India — Delhi</option>
+            <option value="IN-KA">🇮🇳 India — Karnataka</option>
+            <option value="IN-TN">🇮🇳 India — Tamil Nadu</option>
+            <option value="IN-UP">🇮🇳 India — Uttar Pradesh</option>
+            <option value="IN-WB">🇮🇳 India — West Bengal</option>
+            <option value="IN-GJ">🇮🇳 India — Gujarat</option>
+            <option value="IN-RJ">🇮🇳 India — Rajasthan</option>
+          </optgroup>
+          <optgroup label="🌍 Other Countries">
+            <option value="ANY">🌍 Any Country</option>
+            <option value="PK">🇵🇰 Pakistan</option>
+            <option value="BD">🇧🇩 Bangladesh</option>
+            <option value="NP">🇳🇵 Nepal</option>
+            <option value="LK">🇱🇰 Sri Lanka</option>
+            <option value="AE">🇦🇪 UAE</option>
+            <option value="SA">🇸🇦 Saudi Arabia</option>
+            <option value="US">🇺🇸 United States</option>
+            <option value="GB">🇬🇧 United Kingdom</option>
+            <option value="AU">🇦🇺 Australia</option>
+            <option value="CA">🇨🇦 Canada</option>
+            <option value="DE">🇩🇪 Germany</option>
+            <option value="JP">🇯🇵 Japan</option>
+            <option value="KR">🇰🇷 South Korea</option>
+            <option value="PH">🇵🇭 Philippines</option>
+            <option value="ID">🇮🇩 Indonesia</option>
+            <option value="TR">🇹🇷 Turkey</option>
+            <option value="BR">🇧🇷 Brazil</option>
+            <option value="NG">🇳🇬 Nigeria</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+
+    <!-- Terms -->
+    <label class="terms-row">
+      <input type="checkbox" id="termsCheck">
+      <span>I am 18+ and agree to the <a href="#">Terms of Service</a> and <a href="#">Community Guidelines</a>.</span>
+    </label>
+
+    <button class="start-btn" id="startBtn" onclick="handleStart()">Start Chatting →</button>
+  </div>
+
+  <div class="home-footer">
+    <a href="#">Terms</a><span>·</span>
+    <a href="#">Privacy</a><span>·</span>
+    <a href="#">Safety</a><span>·</span>
+    <a href="#">Contact</a>
+  </div>
+</div>
+
+<!-- ══ CHAT SCREEN ═══════════════════════════════════ -->
+<div id="chatScreen">
+  <div class="chat-nav">
+    <div class="logo">Connect<em>Now</em></div>
+    <div class="chat-status">
+      <div class="dot"></div>
+      <span id="chatOnline">—</span> online
+    </div>
+    <button class="leave-btn" onclick="leaveChat()">✕ Leave</button>
+  </div>
+
+  <!-- Videos -->
+  <div class="videos">
+    <!-- Local -->
+    <div class="v-box">
+      <div class="v-tag">YOU</div>
+      <video id="localVideo" autoplay muted playsinline></video>
+      <div class="v-placeholder" id="localPlaceholder">
+        <div class="v-icon">📷</div>
+        <div class="v-label">Camera off</div>
+      </div>
+    </div>
+
+    <!-- Remote -->
+    <div class="v-box">
+      <div class="v-tag">STRANGER</div>
+      <video id="remoteVideo" autoplay playsinline></video>
+      <!-- Status overlay -->
+      <div class="status-overlay" id="statusOverlay">
+        <div class="spinner" id="searchSpinner"></div>
+        <div class="v-label" id="statusText">Finding someone…</div>
+        <!-- Connected state (hidden initially) -->
+        <div id="connInfo" style="display:none; text-align:center;">
+          <div class="conn-flag" id="connFlag">🌍</div>
+          <div class="conn-name" id="connName">Connected!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="chat-ctrl">
+    <button class="cbtn" id="micBtn"  onclick="toggleMic()">🎤 Mute</button>
+    <button class="cbtn" id="camBtn"  onclick="toggleCam()">📷 Camera</button>
+    <button class="cbtn primary"      onclick="nextPerson()">⏭ Next</button>
+    <button class="cbtn red"          onclick="leaveChat()">⏹ Stop</button>
+  </div>
+</div>
+
+<!-- ══ PERMISSION MODAL ════════════════════════════ -->
+<div id="permScreen">
+  <div class="perm-card">
+    <div class="perm-icon">🎥</div>
+    <div class="perm-title">Camera & Mic Access</div>
+    <div class="perm-sub">ConnectNow needs access to your camera and microphone to start a video chat.</div>
+    <button class="perm-btn" onclick="requestPermission()">Allow Access</button>
+    <div class="perm-err" id="permErr"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Socket.io (loaded from server) -->
+<script src="/socket.io/socket.io.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════
+   APP STATE
+═══════════════════════════════════════════════════ */
+let socket      = null;
+let localStream = null;
+let pc          = null;   // RTCPeerConnection
+let myGender    = 'any';
+let myCountry   = 'IN';
+let micOn       = true;
+let camOn       = true;
+let partnerId   = null;
+let searching   = false;
+
+// ICE servers (STUN + public TURN fallback)
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    // Free TURN from open-relay (replace with your own for production)
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+  ]
+};
+
+/* ═══════════════════════════════════════════════════
+   ONLINE COUNTER (animated)
+═══════════════════════════════════════════════════ */
+let onlineCount = 0;
+function setOnline(n) {
+  onlineCount = n;
+  const f = n.toLocaleString('en-IN');
+  document.getElementById('onlineNum').textContent  = f;
+  document.getElementById('chatOnline').textContent = f;
+}
+
+/* ═══════════════════════════════════════════════════
+   UI HELPERS
+═══════════════════════════════════════════════════ */
+function showToast(msg, dur = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function setStatusOverlay(mode, info = {}) {
+  const overlay  = document.getElementById('statusOverlay');
+  const spinner  = document.getElementById('searchSpinner');
+  const statusTx = document.getElementById('statusText');
+  const connInfo = document.getElementById('connInfo');
+
+  if (mode === 'searching') {
+    overlay.classList.remove('hidden');
+    spinner.style.display  = 'block';
+    statusTx.style.display = 'block';
+    statusTx.textContent   = 'Finding someone…';
+    connInfo.style.display = 'none';
+  } else if (mode === 'connected') {
+    spinner.style.display  = 'none';
+    statusTx.style.display = 'none';
+    connInfo.style.display = 'block';
+    document.getElementById('connFlag').textContent = info.flag || '🌍';
+    document.getElementById('connName').textContent = 'Stranger from ' + (info.name || 'Unknown');
+    // Hide overlay after short delay once remote video starts
+    setTimeout(() => overlay.classList.add('hidden'), 2500);
+  } else if (mode === 'left') {
+    overlay.classList.remove('hidden');
+    spinner.style.display  = 'none';
+    connInfo.style.display = 'none';
+    statusTx.style.display = 'block';
+    statusTx.textContent   = 'Stranger left. Finding next…';
+  } else if (mode === 'waiting') {
+    overlay.classList.remove('hidden');
+    spinner.style.display  = 'block';
+    statusTx.style.display = 'block';
+    statusTx.textContent   = 'Waiting for someone…';
+    connInfo.style.display = 'none';
+  }
+}
+
+/* country flag map */
+const countryMap = {
+  'IN':'🇮🇳 India','IN-MH':'🇮🇳 Maharashtra','IN-DL':'🇮🇳 Delhi',
+  'IN-KA':'🇮🇳 Karnataka','IN-TN':'🇮🇳 Tamil Nadu','IN-UP':'🇮🇳 Uttar Pradesh',
+  'IN-WB':'🇮🇳 West Bengal','IN-GJ':'🇮🇳 Gujarat','IN-RJ':'🇮🇳 Rajasthan',
+  'ANY':'🌍 Unknown','US':'🇺🇸 USA','GB':'🇬🇧 UK','PK':'🇵🇰 Pakistan',
+  'BD':'🇧🇩 Bangladesh','NP':'🇳🇵 Nepal','LK':'🇱🇰 Sri Lanka',
+  'AE':'🇦🇪 UAE','SA':'🇸🇦 Saudi Arabia','AU':'🇦🇺 Australia',
+  'CA':'🇨🇦 Canada','DE':'🇩🇪 Germany','JP':'🇯🇵 Japan',
+  'KR':'🇰🇷 S. Korea','PH':'🇵🇭 Philippines','ID':'🇮🇩 Indonesia',
+  'TR':'🇹🇷 Turkey','BR':'🇧🇷 Brazil','NG':'🇳🇬 Nigeria',
+};
+
+function flagOf(code) {
+  const full = countryMap[code] || '🌍 Unknown';
+  return { flag: full.split(' ')[0], name: full.split(' ').slice(1).join(' ') };
+}
+
+/* ═══════════════════════════════════════════════════
+   GENDER PICK
+═══════════════════════════════════════════════════ */
+function pickGender(el) {
+  document.querySelectorAll('.g-btn').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+  const txt = el.textContent.trim().toLowerCase();
+  myGender  = txt.includes('male') && txt.includes('fe') ? 'female'
+            : txt.includes('male') ? 'male' : 'any';
+}
+
+/* ═══════════════════════════════════════════════════
+   PERMISSION & CAMERA
+═══════════════════════════════════════════════════ */
+async function requestPermission() {
+  document.getElementById('permErr').textContent = '';
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('localVideo').srcObject = localStream;
+    document.getElementById('localPlaceholder').style.display = 'none';
+    document.getElementById('permScreen').classList.remove('show');
+    connectSocket();
+  } catch (err) {
+    let msg = 'Could not access camera/mic.';
+    if (err.name === 'NotAllowedError')  msg = 'Permission denied. Please allow camera access in browser settings.';
+    if (err.name === 'NotFoundError')    msg = 'No camera/mic found on this device.';
+    if (err.name === 'NotReadableError') msg = 'Camera is already in use by another app.';
+    document.getElementById('permErr').textContent = msg;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   HANDLE START
+═══════════════════════════════════════════════════ */
+function handleStart() {
+  if (!document.getElementById('termsCheck').checked) {
+    showToast('⚠️ Please accept the Terms of Service.'); return;
+  }
+  myCountry = document.getElementById('countrySelect').value;
+
+  // Show chat screen
+  document.getElementById('homeScreen').style.display = 'none';
+  document.getElementById('chatScreen').classList.add('show');
+  document.body.style.overflow = 'hidden';
+
+  setStatusOverlay('searching');
+
+  if (!localStream) {
+    document.getElementById('permScreen').classList.add('show');
+  } else {
+    connectSocket();
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   SOCKET.IO CONNECTION
+═══════════════════════════════════════════════════ */
+function connectSocket() {
+  if (socket && socket.connected) {
+    findPartner(); return;
+  }
+
+  socket = io({ transports: ['websocket', 'polling'] });
+
+  socket.on('connect', () => {
+    console.log('Socket connected:', socket.id);
+    findPartner();
+  });
+
+  socket.on('online-count', n => setOnline(n));
+
+  socket.on('waiting', () => {
+    searching = true;
+    setStatusOverlay('waiting');
+  });
+
+  socket.on('matched', async ({ roomId, initiator, partnerId: pid }) => {
+    partnerId = pid;
+    searching = false;
+    const info = flagOf(myCountry); // approximate — server doesn't share partner's country yet
+    setStatusOverlay('connected', { flag: info.flag, name: info.name });
+
+    await createPeerConnection();
+
+    if (initiator) {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('offer', { to: partnerId, offer });
+    }
+  });
+
+  socket.on('offer', async ({ from, offer }) => {
+    partnerId = from;
+    await createPeerConnection();
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit('answer', { to: partnerId, answer });
+  });
+
+  socket.on('answer', async ({ answer }) => {
+    if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
+  });
+
+  socket.on('ice-candidate', async ({ candidate }) => {
+    if (pc && candidate) {
+      try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e){}
+    }
+  });
+
+  socket.on('partner-left', () => {
+    cleanupPeer();
+    showToast('Stranger left the chat.');
+    setStatusOverlay('left');
+    setTimeout(() => findPartner(), 1500);
+  });
+
+  socket.on('skipped', () => {
+    setStatusOverlay('searching');
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Socket disconnected');
+  });
+
+  socket.on('connect_error', (err) => {
+    console.error('Connection error:', err.message);
+    showToast('Connection error. Retrying…');
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   WEBRTC PEER CONNECTION
+═══════════════════════════════════════════════════ */
+async function createPeerConnection() {
+  cleanupPeer();
+  pc = new RTCPeerConnection(ICE_SERVERS);
+
+  // Add local tracks
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  }
+
+  // Remote track → video element
+  pc.ontrack = (event) => {
+    const remoteVideo = document.getElementById('remoteVideo');
+    if (remoteVideo.srcObject !== event.streams[0]) {
+      remoteVideo.srcObject = event.streams[0];
+    }
+  };
+
+  // ICE candidate
+  pc.onicecandidate = (event) => {
+    if (event.candidate && partnerId) {
+      socket.emit('ice-candidate', { to: partnerId, candidate: event.candidate });
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    console.log('PC state:', pc.connectionState);
+    if (pc.connectionState === 'connected') {
+      // Hide overlay fully when media flows
+      setTimeout(() => {
+        document.getElementById('statusOverlay').classList.add('hidden');
+      }, 500);
+    }
+  };
+}
+
+function cleanupPeer() {
+  if (pc) {
+    pc.ontrack = null;
+    pc.onicecandidate = null;
+    pc.close();
+    pc = null;
+  }
+  const rv = document.getElementById('remoteVideo');
+  if (rv.srcObject) { rv.srcObject.getTracks().forEach(t => t.stop()); rv.srcObject = null; }
+  partnerId = null;
+}
+
+/* ═══════════════════════════════════════════════════
+   FIND PARTNER
+═══════════════════════════════════════════════════ */
+function findPartner() {
+  setStatusOverlay('searching');
+  if (socket && socket.connected) {
+    socket.emit('find-partner', { gender: myGender, country: myCountry });
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   CONTROLS
+═══════════════════════════════════════════════════ */
+function nextPerson() {
+  cleanupPeer();
+  if (socket) socket.emit('skip');
+  setTimeout(findPartner, 300);
+}
+
+function leaveChat() {
+  cleanupPeer();
+  if (socket) { socket.emit('skip'); socket.disconnect(); socket = null; }
+
+  // Stop local stream
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+
+  document.getElementById('localVideo').srcObject = null;
+  document.getElementById('localPlaceholder').style.display = 'flex';
+
+  document.getElementById('chatScreen').classList.remove('show');
+  document.getElementById('homeScreen').style.display  = '';
+  document.body.style.overflow = '';
+
+  micOn = true; camOn = true;
+  document.getElementById('micBtn').textContent = '🎤 Mute';
+  document.getElementById('micBtn').classList.remove('active-off');
+  document.getElementById('camBtn').textContent = '📷 Camera';
+  document.getElementById('camBtn').classList.remove('active-off');
+}
+
+function toggleMic() {
+  if (!localStream) return;
+  micOn = !micOn;
+  localStream.getAudioTracks().forEach(t => t.enabled = micOn);
+  const btn = document.getElementById('micBtn');
+  btn.textContent = micOn ? '🎤 Mute' : '🔇 Unmuted';
+  btn.classList.toggle('active-off', !micOn);
+}
+
+function toggleCam() {
+  if (!localStream) return;
+  camOn = !camOn;
+  localStream.getVideoTracks().forEach(t => t.enabled = camOn);
+  const lv = document.getElementById('localVideo');
+  const lp = document.getElementById('localPlaceholder');
+  lv.style.display = camOn ? 'block' : 'none';
+  lp.style.display = camOn ? 'none'  : 'flex';
+  const btn = document.getElementById('camBtn');
+  btn.textContent = camOn ? '📷 Camera' : '📵 Cam Off';
+  btn.classList.toggle('active-off', !camOn);
+}
+
+/* ═══════════════════════════════════════════════════
+   SWIPE GESTURE — mobile "swipe up" = next
+═══════════════════════════════════════════════════ */
+let touchStartY = 0;
+document.getElementById('chatScreen').addEventListener('touchstart', e => {
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+document.getElementById('chatScreen').addEventListener('touchend', e => {
+  const dy = touchStartY - e.changedTouches[0].clientY;
+  if (dy > 60) { // swipe up > 60px → next
+    nextPerson();
+    showToast('⏭ Skipped');
+  }
+}, { passive: true });
+
+/* ═══════════════════════════════════════════════════
+   INIT — set placeholder online count
+═══════════════════════════════════════════════════ */
+setOnline(0);
+</script>
+</body>
+</html>
