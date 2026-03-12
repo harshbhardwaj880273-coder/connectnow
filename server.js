@@ -13,9 +13,9 @@ const io     = new Server(server, {
 });
 
 // Serve static frontend
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname)));
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // ── State ──────────────────────────────────────────────
