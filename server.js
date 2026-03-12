@@ -7,120 +7,107 @@ const { v4: uuidv4 } = require('uuid');
 const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: { origin: '*', methods: ['GET','POST'] },
   pingTimeout: 60000,
   pingInterval: 25000,
 });
 
-// Serve static frontend
-app.use(express.static(path.join(__dirname)));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+// ── Serve frontend ─────────────────────────────────
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ── ICE config endpoint — fresh on every request ───
+// Using free Metered TURN + openrelay as backup
+app.get('/ice', (req, res) => {
+  res.json({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:stun.relay.metered.ca:80' },
+      // openrelay — always free, no account needed
+      { urls: 'turn:openrelay.metered.ca:80',                   username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:80?transport=tcp',     username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443',                  username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp',    username: 'openrelayproject', credential: 'openrelayproject' },
+      // expressturn free tier
+      { urls: 'turn:relay1.expressturn.com:3478', username: 'efKBDS8AAAF6GGFY', credential: 'JZEOEt2V3Dputaqw' },
+    ],
+    iceCandidatePoolSize: 10,
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require',
+  });
 });
 
-// ── State ──────────────────────────────────────────────
-// waiting: { socketId, gender, country }
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ── State ──────────────────────────────────────────
 const waiting = [];
+const rooms   = new Map();
+const users   = new Map();
 
-// rooms: Map<roomId, [socketId, socketId]>
-const rooms = new Map();
-
-// users: Map<socketId, { roomId, peerId }>
-const users = new Map();
-
-// ── Helpers ────────────────────────────────────────────
-function removeFromWaiting(socketId) {
-  const idx = waiting.findIndex(u => u.socketId === socketId);
-  if (idx !== -1) waiting.splice(idx, 1);
+function removeFromWaiting(id) {
+  const i = waiting.findIndex(u => u.socketId === id);
+  if (i !== -1) waiting.splice(i, 1);
 }
 
 function findMatch(seeker) {
-  // Try same country first (India-biased naturally), then any
-  let idx = waiting.findIndex(u =>
+  let i = waiting.findIndex(u =>
     u.socketId !== seeker.socketId &&
     (u.country === seeker.country || seeker.country === 'ANY' || u.country === 'ANY')
   );
-  if (idx === -1) {
-    // Fallback: any person
-    idx = waiting.findIndex(u => u.socketId !== seeker.socketId);
-  }
-  return idx;
+  if (i === -1) i = waiting.findIndex(u => u.socketId !== seeker.socketId);
+  return i;
 }
 
-function leaveRoom(socketId) {
-  const user = users.get(socketId);
+function leaveRoom(id) {
+  const user = users.get(id);
   if (!user) return;
-  const { roomId } = user;
-  const room = rooms.get(roomId);
+  const room = rooms.get(user.roomId);
   if (room) {
-    const partnerId = room.find(id => id !== socketId);
-    if (partnerId) {
-      io.to(partnerId).emit('partner-left');
-      users.delete(partnerId);
-      // put partner back in waiting with their original info (they'll re-queue)
-    }
-    rooms.delete(roomId);
+    const pid = room.find(x => x !== id);
+    if (pid) { io.to(pid).emit('partner-left'); users.delete(pid); }
+    rooms.delete(user.roomId);
   }
-  users.delete(socketId);
+  users.delete(id);
 }
 
-// ── Socket events ──────────────────────────────────────
-io.on('connection', (socket) => {
-  console.log(`[+] ${socket.id} connected. Online: ${io.engine.clientsCount}`);
-
-  // Broadcast online count every connection/disconnection
+// ── Socket ─────────────────────────────────────────
+io.on('connection', socket => {
+  console.log(`[+] ${socket.id}  online=${io.engine.clientsCount}`);
   io.emit('online-count', io.engine.clientsCount);
 
-  // ── Find a partner ──
   socket.on('find-partner', ({ gender, country }) => {
-    // Remove from any old waiting slot
     removeFromWaiting(socket.id);
     leaveRoom(socket.id);
-
     const seeker = { socketId: socket.id, gender, country };
     const idx    = findMatch(seeker);
-
     if (idx !== -1) {
-      // Found a partner
       const partner = waiting.splice(idx, 1)[0];
       const roomId  = uuidv4();
-
       rooms.set(roomId, [socket.id, partner.socketId]);
-      users.set(socket.id,     { roomId, peerId: partner.socketId });
-      users.set(partner.socketId, { roomId, peerId: socket.id });
-
-      // Tell both who initiates the WebRTC offer
-      io.to(socket.id).emit('matched', { roomId, initiator: true,  partnerId: partner.socketId });
-      io.to(partner.socketId).emit('matched', { roomId, initiator: false, partnerId: socket.id });
+      users.set(socket.id,          { roomId, peerId: partner.socketId });
+      users.set(partner.socketId,   { roomId, peerId: socket.id });
+      io.to(socket.id).emit('matched',         { roomId, initiator: true,  partnerId: partner.socketId });
+      io.to(partner.socketId).emit('matched',  { roomId, initiator: false, partnerId: socket.id });
+      console.log(`  room ${roomId.slice(0,8)} — ${socket.id.slice(0,6)} <-> ${partner.socketId.slice(0,6)}`);
     } else {
-      // Join waiting queue
       waiting.push(seeker);
       socket.emit('waiting');
     }
   });
 
-  // ── WebRTC signaling relay ──
-  socket.on('offer', ({ to, offer }) => {
-    io.to(to).emit('offer', { from: socket.id, offer });
-  });
+  socket.on('offer',         ({ to, offer })      => io.to(to).emit('offer',         { from: socket.id, offer }));
+  socket.on('answer',        ({ to, answer })     => io.to(to).emit('answer',        { from: socket.id, answer }));
+  socket.on('ice-candidate', ({ to, candidate })  => io.to(to).emit('ice-candidate', { from: socket.id, candidate }));
 
-  socket.on('answer', ({ to, answer }) => {
-    io.to(to).emit('answer', { from: socket.id, answer });
-  });
+  socket.on('skip', () => { leaveRoom(socket.id); socket.emit('skipped'); });
 
-  socket.on('ice-candidate', ({ to, candidate }) => {
-    io.to(to).emit('ice-candidate', { from: socket.id, candidate });
-  });
-
-  // ── Skip / Next ──
-  socket.on('skip', () => {
-    leaveRoom(socket.id);
-    socket.emit('skipped');
-  });
-
-  // ── Disconnect ──
   socket.on('disconnect', () => {
-    console.log(`[-] ${socket.id} disconnected`);
+    console.log(`[-] ${socket.id}`);
     removeFromWaiting(socket.id);
     leaveRoom(socket.id);
     io.emit('online-count', io.engine.clientsCount);
@@ -128,6 +115,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀  ConnectNow running on port ${PORT}\n`);
-});
+server.listen(PORT, '0.0.0.0', () => console.log(`🚀 ConnectNow on port ${PORT}`));
