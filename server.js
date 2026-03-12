@@ -13,35 +13,44 @@ const io     = new Server(server, {
   pingInterval: 25000,
 });
 
-// ── Serve frontend — handle both /public/index.html and /index.html ──
-const publicDir  = path.join(__dirname, 'public');
-const rootIndex  = path.join(__dirname, 'index.html');
-const pubIndex   = path.join(__dirname, 'public', 'index.html');
+// ── Serve frontend ──────────────────────────────────
+const publicDir = path.join(__dirname, 'public');
+const rootIndex = path.join(__dirname, 'index.html');
+const pubIndex  = path.join(__dirname, 'public', 'index.html');
 
-// Serve static from /public if it exists, else from root
 if (fs.existsSync(publicDir)) {
   app.use(express.static(publicDir));
-  console.log('Serving from /public');
 } else {
   app.use(express.static(__dirname));
-  console.log('Serving from root');
 }
 
-// ── ICE config endpoint ─────────────────────────────
+// ── ICE config — Metered.ca fresh credentials ───────
 app.get('/ice', (req, res) => {
   res.json({
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' },
       { urls: 'stun:stun.relay.metered.ca:80' },
-      { urls: 'turn:openrelay.metered.ca:80',                   username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:openrelay.metered.ca:80?transport=tcp',     username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:openrelay.metered.ca:443',                  username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:openrelay.metered.ca:443?transport=tcp',    username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:relay1.expressturn.com:3478', username: 'efKBDS8AAAF6GGFY', credential: 'JZEOEt2V3Dputaqw' },
+      {
+        urls: 'turn:global.relay.metered.ca:80',
+        username: '0d74157d43e6577a7460b231',
+        credential: 'POtrINursVJbAXK3',
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+        username: '0d74157d43e6577a7460b231',
+        credential: 'POtrINursVJbAXK3',
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:443',
+        username: '0d74157d43e6577a7460b231',
+        credential: 'POtrINursVJbAXK3',
+      },
+      {
+        urls: 'turns:global.relay.metered.ca:443?transport=tcp',
+        username: '0d74157d43e6577a7460b231',
+        credential: 'POtrINursVJbAXK3',
+      },
     ],
     iceCandidatePoolSize: 10,
     bundlePolicy: 'max-bundle',
@@ -49,11 +58,11 @@ app.get('/ice', (req, res) => {
   });
 });
 
-// ── Catch-all — serve index.html ────────────────────
+// ── Catch-all ───────────────────────────────────────
 app.get('*', (req, res) => {
   if (fs.existsSync(pubIndex))       res.sendFile(pubIndex);
   else if (fs.existsSync(rootIndex)) res.sendFile(rootIndex);
-  else res.status(404).send('index.html not found. Check your repo structure.');
+  else res.status(404).send('index.html not found.');
 });
 
 // ── State ───────────────────────────────────────────
